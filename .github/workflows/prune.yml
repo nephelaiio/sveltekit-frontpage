@@ -1,0 +1,31 @@
+---
+name: prune
+
+on:
+
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+
+  branches:
+
+    name: prune branches
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Prune stale branches
+        uses: beatlabs/delete-old-branches-action@v0.0.9
+        with:
+          repo_token: ${{ github.token }}
+          date: '2 weeks'
+          dry_run: true
+          delete_tags: false
+          exclude_open_pr_branches: false
