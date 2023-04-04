@@ -1,0 +1,46 @@
+---
+name: test
+
+on:
+
+  push:
+    branches-ignore:
+      - master
+
+jobs:
+
+  test:
+
+    name: test
+
+    runs-on: ubuntu-latest
+
+    env:
+
+      CLOUDFLARE_PROJECT: ${{ vars.CF_PROJECT }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_ACCOUNT_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+    steps:
+
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install playwright browsers
+        run: npm exec playwright install
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Test project
+        run: npm run test
