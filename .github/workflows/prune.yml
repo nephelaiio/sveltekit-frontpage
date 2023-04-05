@@ -3,8 +3,9 @@ name: prune
 
 on:
 
+  push:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '0 0 * * *'
 
 jobs:
 
@@ -17,7 +18,7 @@ jobs:
     steps:
 
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Prune stale branches
         uses: beatlabs/delete-old-branches-action@v0.0.9
