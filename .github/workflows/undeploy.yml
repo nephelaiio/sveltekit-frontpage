@@ -1,5 +1,5 @@
 ---
-name: undeploy
+name: Undeploy preview environment
 
 on:
 
@@ -25,6 +25,14 @@ jobs:
 
       - name: Check out code
         uses: actions/checkout@v3
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
 
       - name: Execute undeploy script
         run: npm run worker -- remove --verbose --branch ${{ github.event.ref }}

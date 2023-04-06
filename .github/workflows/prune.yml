@@ -1,5 +1,5 @@
 ---
-name: prune
+name: Prune stale branches
 
 on:
 
