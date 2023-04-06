@@ -10,7 +10,8 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --plugin-search-dir . --check . && eslint .",
-		"format": "prettier --plugin-search-dir . --write ."
+		"format": "prettier --plugin-search-dir . --write .",
+		"worker": "ts-node --esm bin/worker.ts"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20230321.0",
@@ -18,8 +19,11 @@
 		"@sveltejs/adapter-auto": "^2.0.0",
 		"@sveltejs/adapter-cloudflare-workers": "^1.1.0",
 		"@sveltejs/kit": "^1.5.0",
+		"@types/cli-color": "^2.0.2",
 		"@typescript-eslint/eslint-plugin": "^5.45.0",
 		"@typescript-eslint/parser": "^5.45.0",
+		"cli-color": "^2.0.3",
+		"commander": "^10.0.0",
 		"dotenv-cli": "^7.1.0",
 		"eslint": "^8.28.0",
 		"eslint-config-prettier": "^8.5.0",
@@ -28,6 +32,8 @@
 		"prettier-plugin-svelte": "^2.8.1",
 		"svelte": "^3.54.0",
 		"svelte-check": "^3.0.1",
+		"toml": "^3.0.0",
+		"ts-node": "^10.9.1",
 		"tslib": "^2.4.1",
 		"typescript": "^5.0.0",
 		"vite": "^4.2.0",
