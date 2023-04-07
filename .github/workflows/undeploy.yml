@@ -20,7 +20,7 @@ jobs:
       - uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          environment: $GITHUB_REF_NAME
+          environment: ${{ env.GITHUB_REF_NAME }}
 
   worker:
 
@@ -47,4 +47,4 @@ jobs:
         run: npm install
 
       - name: Remove Cloudflare worker
-        run: npm run worker -- remove --verbose --prefix $GITHUB_REF_NAME
+        run: npm run worker -- remove --verbose --prefix ${{ env.GITHUB_REF_NAME }}
