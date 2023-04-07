@@ -11,7 +11,7 @@ jobs:
 
   environment:
 
-    name: delete preview worker
+    name: delete preview environment
 
     runs-on: ubuntu-latest
 
@@ -46,5 +46,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Execute undeploy script
-        run: npm run worker -- remove --verbose --branch $GITHUB_REF_NAME
+      - name: Remove Cloudflare worker
+        run: npm run worker -- remove --verbose --prefix $GITHUB_REF_NAME
