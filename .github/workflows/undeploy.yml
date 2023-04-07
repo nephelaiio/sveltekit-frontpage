@@ -3,21 +3,33 @@ name: Undeploy preview environment
 
 on:
 
-  delete:
+  pull_request:
+    types:
+      - closed
 
 jobs:
 
-  pages:
+  environment:
 
-    if: github.event.ref_type == 'branch'
+    name: delete preview worker
 
-    name: undeploy preview environment
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: strumwolf/delete-deployment-environment@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: $GITHUB_REF_NAME
+
+  worker:
+
+    name: delete preview worker
 
     runs-on: ubuntu-latest
 
     env:
 
-      CLOUDFLARE_PROJECT: ${{ vars.CLOUDFLARE_PROJECT }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CF_ACCOUNT_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
 
@@ -35,4 +47,4 @@ jobs:
         run: npm install
 
       - name: Execute undeploy script
-        run: npm run worker -- remove --verbose --branch ${{ github.event.ref }}
+        run: npm run worker -- remove --verbose --branch $GITHUB_REF_NAME
