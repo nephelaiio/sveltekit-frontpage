@@ -53,8 +53,8 @@ function deployCloudflareWorker(name: string) {
 			.split('\n')
 			.filter((line) => line.match(/.*workers.dev$/))[0]
 			.trim();
-		logger.info(`Worker deployment ${deploymentId} successful`);
-		logger.info(`Worker deployed at ${workerUrl}`);
+		logger.debug(`Worker deployment ${deploymentId} successful`);
+		logger.debug(`Worker deployed at ${workerUrl}`);
 		return { deploymentId, workerUrl };
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	} catch (error: any) {
@@ -73,6 +73,7 @@ async function deploy(name: string) {
 	const { workerUrl } = deployCloudflareWorker(name);
 	logger.debug(`Worker deployed at ${workerUrl}`);
 	logger.debug('Exiting deploy command handler');
+	console.log(workerUrl);
 }
 
 function removeCloudflareWorker(name: string): void {
@@ -81,7 +82,7 @@ function removeCloudflareWorker(name: string): void {
 	try {
 		execSync(command);
 	} catch {} // eslint-disable-line no-empty
-	logger.info(`worker ${name} removed successfully`);
+	logger.debug(`worker ${name} removed successfully`);
 }
 
 async function remove(name: string): Promise<void> {
