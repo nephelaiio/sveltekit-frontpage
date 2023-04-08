@@ -87,9 +87,6 @@ function removeCloudflareWorker(name: string): void {
 async function remove(name: string): Promise<void> {
 	logger.debug('Entering remove command handler');
 	removeCloudflareWorker(name);
-	const environments = await githubAPI('GET', 'environments');
-	logger.debug('Environment data:');
-	logger.debug(JSON.stringify(environments));
 	logger.debug('Exiting remove command handler');
 }
 

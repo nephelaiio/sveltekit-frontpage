@@ -33,7 +33,6 @@ jobs:
         with:
           token: ${{ github.token.outputs.token }}
           environment: $GITHUB_REF_NAME
-          ref: $GITHUB_REF_NAME
 
   worker:
 
