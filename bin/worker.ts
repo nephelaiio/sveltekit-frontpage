@@ -72,13 +72,6 @@ async function deploy(name: string) {
 	logger.debug('Entering deploy command handler');
 	const { workerUrl } = deployCloudflareWorker(name);
 	logger.debug(`Worker deployed at ${workerUrl}`);
-	await githubAPI('PUT', 'environments/{name}', {
-		wait_timer: 0,
-		deployment_branch_policy: null
-	});
-	const environments = await githubAPI('GET', 'environments');
-	logger.debug(`Github environment ${name} created/updated successfully`);
-	logger.debug(environments);
 	logger.debug('Exiting deploy command handler');
 }
 
