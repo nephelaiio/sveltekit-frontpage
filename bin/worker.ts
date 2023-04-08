@@ -11,46 +11,27 @@ if (fs.existsSync(`${process.cwd()}/.env`)) {
 	dotenv.config({ path: `${process.cwd()}/.env` });
 }
 
-const config = {
-	GITHUB_API_URL: 'https://api.github.com/repos',
-	GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY || null,
-	WRANGLER_CONFIG: 'wrangler.toml',
-	LOG_LEVELS: {
-		silly: 0,
-		trace: 1,
-		debug: 2,
-		info: 3,
-		warn: 4,
-		error: 5,
-		fatal: 6
-	}
+const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY || null;
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || null;
+const WRANGLER_CONFIG = 'wrangler.toml';
+const LOG_LEVELS = {
+	silly: 0,
+	trace: 1,
+	debug: 2,
+	info: 3,
+	warn: 4,
+	error: 5,
+	fatal: 6
 };
-const logger: Logger<ILogObj> = new Logger({ name: 'worker', minLevel: config.LOG_LEVELS.info });
 
-function readConfig(configFile: string = config.WRANGLER_CONFIG) {
+const logger: Logger<ILogObj> = new Logger({ name: 'worker', minLevel: LOG_LEVELS.info });
+
+function readConfig(configFile: string = WRANGLER_CONFIG) {
 	return toml.parse(fs.readFileSync(configFile, 'utf-8'));
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-//async function githubAPI(method: string, path: string, body: any = null): Promise<any[]> {
-//const headers = { Authorization: `Bearer ${config.cloudflare_api_token}` };
-//const url = `${config.cloudflare_api_url}/accounts/${config.CLOUDFLARE_ACCOUNT_ID}/${path}`;
-//logger.debug('Calling Cloudflare API:');
-//logger.debug(`  curl -X${method} ${url} -H "Authorization: ${headers.Authorization}"`);
-//const response = await fetch(url, {
-//	method,
-//	headers,
-//	body
-//});
-//if (!response.ok) {
-//	throw new Error(`Failed to fetch worker data: ${response.status}`);
-//}
-//const data = await response.json();
-//return [data.result].flat();
-//}
-
 function cloudflareWorkerName(prefix: string): string {
-	const { name } = readConfig(config.WRANGLER_CONFIG);
+	const { name } = readConfig(WRANGLER_CONFIG);
 	if (prefix != '' && prefix != 'main' && prefix != 'master') {
 		return `${prefix}-${name}`;
 	} else {
@@ -91,6 +72,13 @@ async function deploy(name: string) {
 	logger.debug('Entering deploy command handler');
 	const { workerUrl } = deployCloudflareWorker(name);
 	logger.debug(`Worker deployed at ${workerUrl}`);
+	await githubAPI('PUT', 'environments/{name}', {
+		wait_timer: 0,
+		deployment_branch_policy: null
+	});
+	const environments = await githubAPI('GET', 'environments');
+	logger.debug(`Github environment ${name} created/updated successfully`);
+	logger.debug(environments);
 	logger.debug('Exiting deploy command handler');
 }
 
@@ -103,9 +91,12 @@ function removeCloudflareWorker(name: string): void {
 	logger.info(`worker ${name} removed successfully`);
 }
 
-function remove(name: string): void {
+async function remove(name: string): Promise<void> {
 	logger.debug('Entering remove command handler');
 	removeCloudflareWorker(name);
+	const environments = await githubAPI('GET', 'environments');
+	logger.debug('Environment data:');
+	logger.debug(JSON.stringify(environments));
 	logger.debug('Exiting remove command handler');
 }
 
@@ -114,9 +105,9 @@ async function handle(program: Command, fn: (x: string) => void, args: any) {
 	const isVerbose = program.opts()['verbose'];
 	const isQuiet = program.opts()['quiet'];
 	const isGithubAction = process.env.GITHUB_ACTIONS === 'true';
-	if (isVerbose) logger.settings.minLevel = config.LOG_LEVELS.debug;
-	if (isQuiet) logger.settings.minLevel = config.LOG_LEVELS.fatal;
-	if (isGithubAction) logger.settings.minLevel = config.LOG_LEVELS.fatal;
+	if (isVerbose) logger.settings.minLevel = LOG_LEVELS.debug;
+	if (isQuiet) logger.settings.minLevel = LOG_LEVELS.fatal;
+	if (isGithubAction) logger.settings.minLevel = LOG_LEVELS.fatal;
 	logger.debug(`Running action handler with args ${JSON.stringify(args)}`);
 	const workerName = process.env.WORKER_NAME
 		? cloudflareWorkerName(process.env.WORKER_NAME)
@@ -126,8 +117,12 @@ async function handle(program: Command, fn: (x: string) => void, args: any) {
 }
 
 function checkConfig() {
-	if (!config.GITHUB_REPOSITORY) {
+	if (!GITHUB_REPOSITORY) {
 		logger.fatal('GITHUB_REPOSITORY environment variable is not set');
+		process.exit(1);
+	}
+	if (!GITHUB_TOKEN) {
+		logger.fatal('GITHUB_TOKEN environment variable is not set');
 		process.exit(1);
 	}
 }
