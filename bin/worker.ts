@@ -111,10 +111,6 @@ function checkConfig() {
 		logger.fatal('GITHUB_REPOSITORY environment variable is not set');
 		process.exit(1);
 	}
-	if (!GITHUB_TOKEN) {
-		logger.fatal('GITHUB_TOKEN environment variable is not set');
-		process.exit(1);
-	}
 }
 
 function main() {
