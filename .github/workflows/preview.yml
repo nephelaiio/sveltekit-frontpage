@@ -1,5 +1,5 @@
 ---
-name: Undeploy preview environment
+name: Create preview environment
 
 on:
 
@@ -34,5 +34,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Remove Cloudflare worker
+      - name: Deploy Cloudflare worker
         run: npm run worker -- deploy --prefix $GITHUB_REF_NAME
