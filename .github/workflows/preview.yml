@@ -41,7 +41,7 @@ jobs:
 
       - name: Deploy Cloudflare worker
         id: deploy
-        run: echo "workerUrl=$(npm run worker -- deploy --prefix $GITHUB_HEAD_REF)" >> "$GITHUB_OUTPUT"
+        run: echo "workerUrl=$(npm run --silent worker -- deploy --prefix $GITHUB_HEAD_REF)" >> "$GITHUB_OUTPUT"
 
   environment:
 
