@@ -24,7 +24,7 @@ jobs:
 
     outputs:
 
-      workerUrl: ${{ steps.deploy.outputs.stdout }}
+      workerUrl: ${{ steps.deploy.outputs.workerUrl }}
 
     steps:
 
@@ -41,7 +41,7 @@ jobs:
 
       - name: Deploy Cloudflare worker
         id: deploy
-        run: echo "npm run worker -- deploy --prefix $GITHUB_HEAD_REF"
+        run: echo "workerUrl=$(npm run worker -- deploy --prefix $GITHUB_HEAD_REF)" >> "$GITHUB_OUTPUT"
 
   environment:
 
