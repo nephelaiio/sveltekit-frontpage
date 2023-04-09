@@ -45,6 +45,10 @@ jobs:
 
   environment:
 
+    needs:
+
+      - worker
+
     name: create github environment
 
     runs-on: ubuntu-latest
