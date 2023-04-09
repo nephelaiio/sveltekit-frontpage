@@ -54,6 +54,13 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ steps.get-token.outputs.token }}
+          name: \$GITHUB_REF_NAME
+          environment: \$GITHUB_REF_NAME
+
+      - name: Delete Github preview environment
+        uses: strumwolf/delete-deployment-environment@v2
+        with:
+          token: ${{ steps.get-token.outputs.token }}
           name: \$GITHUB_HEAD_REF
           environment: \$GITHUB_HEAD_REF
 
@@ -66,7 +73,7 @@ jobs:
     name: create github environment
 
     environment:
-      name: "$GITHUB_REF_NAME"
+      name: "${{ env.GITHUB_REF_NAME }}"
       url: "${{ needs.worker.outputs.workerUrl }}"
 
     runs-on: ubuntu-latest
