@@ -35,5 +35,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Debug deployment target
+        run: echo "Deploying worker with prefix $GITHUB_HEAD_REF"
+
       - name: Deploy Cloudflare worker
         run: npm run worker -- deploy --prefix $GITHUB_HEAD_REF
