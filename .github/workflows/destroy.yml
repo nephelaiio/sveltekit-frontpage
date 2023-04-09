@@ -59,8 +59,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Debug deployment target
-        run: echo "Deleting worker with prefix $GITHUB_HEAD_REF"
-
       - name: Remove Cloudflare worker
-        run: npm run worker -- remove --verbose --prefix $GITHUB_HEAD_REF
+        run: "npm run worker -- remove --verbose --prefix $GITHUB_HEAD_REF"
