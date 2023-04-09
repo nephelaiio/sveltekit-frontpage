@@ -124,7 +124,7 @@ function main() {
 		.description('worker deployment tool')
 		.option('-v, --verbose', 'verbose output', false)
 		.option('-q, --quiet', 'quiet output (overrides verbose)', false)
-		.option('-p, --prefix', 'deployment name prefix', 'test');
+		.option('-p, --prefix [prefix]', 'deployment name prefix', 'test');
 	program.command('deploy').action((options) => handle(program, deploy, options));
 	program.command('remove').action((options) => handle(program, remove, options));
 	program.parse(process.argv);
