@@ -100,11 +100,8 @@ async function handle(program: Command, fn: (x: string) => void, args: any) {
 	if (isQuiet) logger.settings.minLevel = LOG_LEVELS.fatal;
 	if (isGithubAction) logger.settings.minLevel = LOG_LEVELS.fatal;
 	logger.debug(`Running action handler with args ${JSON.stringify(args)}`);
-	console.log(JSON.stringify(program.opts()));
 	const prefix = program.opts()['prefix'];
-	console.log(`Deploying worker with prefix ${prefix}`);
 	const workerName = cloudflareWorkerName(prefix);
-	console.log(`Deploying cloudflare worker ${workerName}`);
 	logger.debug(`Deploying cloudflare worker ${workerName}`);
 	fn(workerName);
 }
