@@ -61,9 +61,9 @@ function deployCloudflareWorker(name: string) {
 		const { status, outBuffer, errBuffer } = error;
 		const stderr = (errBuffer && errBuffer.toString()) || 'unknown error';
 		const stdout = (outBuffer && outBuffer.toString()) || 'no output';
-		logger.error(`worker deployment failed wiith code ${status || 'interrupted'}`);
-		logger.error(`stdout: ${stdout}`);
-		logger.error(`stderr: ${stderr}`);
+		console.log(`worker deployment failed wiith code ${status || 'interrupted'}`);
+		console.log(`stdout: ${stdout}`);
+		console.log(`stderr: ${stderr}`);
 		throw new Error(`Failed to deploy cloudflare Worker ${name}`);
 	}
 }
