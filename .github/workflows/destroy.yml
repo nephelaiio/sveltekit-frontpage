@@ -1,5 +1,5 @@
 ---
-name: Undeploy preview environment
+name: Destroy preview environment
 
 on:
 
