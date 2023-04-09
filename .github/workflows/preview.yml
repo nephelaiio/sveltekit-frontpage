@@ -51,9 +51,13 @@ jobs:
 
     name: create github environment
 
+    environment:
+      name: "$GITHUB_HEAD_REF"
+      url: "${{ needs.worker.outputs.workerUrl }}"
+
     runs-on: ubuntu-latest
 
     steps:
 
       - name: Debug environment creation
-        run: echo "Created environment ${{ needs.worker.outputs.workerUrl }}"
+        run: echo "Deployed environment $GITHUB_HEAD_REF at url ${{ needs.worker.outputs.workerUrl }}"
