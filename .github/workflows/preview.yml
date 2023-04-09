@@ -24,6 +24,7 @@ jobs:
 
     outputs:
 
+      workerEnv: ${{ steps.environment.outputs.workerEnv }}
       workerUrl: ${{ steps.deploy.outputs.workerUrl }}
 
     steps:
@@ -39,30 +40,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Record worker environment
+        id: environment
+        run: echo "workerEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
+
       - name: Deploy Cloudflare worker
         id: deploy
-        run: echo "workerUrl=$(npm run --silent worker -- deploy --prefix $GITHUB_HEAD_REF)" >> "$GITHUB_OUTPUT"
-
-      - name: Get GitHub App token
-        uses: navikt/github-app-token-generator@a3831f44404199df32d8f39f7c0ad9bb8fa18b1c
-        id: get-token
-        with:
-          app-id: ${{ secrets.GH_APP_ENV_ID }}
-          private-key: ${{ secrets.GH_APP_ENV_PRIVKEY }}
-
-      - name: Delete Github preview environment
-        uses: strumwolf/delete-deployment-environment@v2
-        with:
-          token: ${{ steps.get-token.outputs.token }}
-          name: \$GITHUB_REF_NAME
-          environment: \$GITHUB_REF_NAME
-
-      - name: Delete Github preview environment
-        uses: strumwolf/delete-deployment-environment@v2
-        with:
-          token: ${{ steps.get-token.outputs.token }}
-          name: \$GITHUB_HEAD_REF
-          environment: \$GITHUB_HEAD_REF
+        run: echo "workerUrl=$(npm run --silent worker -- deploy --prefix ${{ steps.environment.outputs.workerEnv }})" >> "$GITHUB_OUTPUT"
 
   environment:
 
@@ -73,7 +57,7 @@ jobs:
     name: create github environment
 
     environment:
-      name: "${{ env.GITHUB_REF_NAME }}"
+      name: "${{ needs.worker.outputs.workerEnv }}"
       url: "${{ needs.worker.outputs.workerUrl }}"
 
     runs-on: ubuntu-latest
