@@ -54,8 +54,8 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ steps.get-token.outputs.token }}
-          name: \$GITHUB_REF_NAME
-          environment: \$GITHUB_REF_NAME
+          name: \$GITHUB_HEAD_REF
+          environment: \$GITHUB_HEAD_REF
 
   environment:
 
