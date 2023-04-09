@@ -43,6 +43,20 @@ jobs:
         id: deploy
         run: echo "workerUrl=$(npm run --silent worker -- deploy --prefix $GITHUB_HEAD_REF)" >> "$GITHUB_OUTPUT"
 
+      - name: Get GitHub App token
+        uses: navikt/github-app-token-generator@a3831f44404199df32d8f39f7c0ad9bb8fa18b1c
+        id: get-token
+        with:
+          app-id: ${{ secrets.GH_APP_ENV_ID }}
+          private-key: ${{ secrets.GH_APP_ENV_PRIVKEY }}
+
+      - name: Delete Github preview environment
+        uses: strumwolf/delete-deployment-environment@v2
+        with:
+          token: ${{ steps.get-token.outputs.token }}
+          name: \$GITHUB_REF_NAME
+          environment: \$GITHUB_REF_NAME
+
   environment:
 
     needs:
@@ -52,7 +66,7 @@ jobs:
     name: create github environment
 
     environment:
-      name: "$GITHUB_HEAD_REF"
+      name: "$GITHUB_REF_NAME"
       url: "${{ needs.worker.outputs.workerUrl }}"
 
     runs-on: ubuntu-latest
