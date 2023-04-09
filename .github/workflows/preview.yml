@@ -1,5 +1,5 @@
 ---
-name: Run NPM tests
+name: Create preview environment
 
 on:
 
@@ -11,9 +11,9 @@ on:
 
 jobs:
 
-  test:
+  worker:
 
-    name: test
+    name: deploy preview worker
 
     runs-on: ubuntu-latest
 
@@ -35,11 +35,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install playwright browsers
-        run: npm exec playwright install
-
-      - name: Lint code
-        run: npm run lint
-
-      - name: Test project
-        run: npm run test
+      - name: Deploy Cloudflare worker
+        run: npm run worker -- deploy --prefix $GITHUB_REF_NAME
