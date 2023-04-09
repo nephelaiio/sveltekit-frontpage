@@ -15,10 +15,6 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    env:
-
-      GITHUB_ADMIN_TOKEN: ${{ secrets.GH_TOKEN }}
-
     steps:
 
       - name: Get GitHub App token
@@ -32,8 +28,7 @@ jobs:
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ steps.get-token.outputs.token }}
-          name: $GITHUB_REF_NAME
-          environment: $GITHUB_REF_NAME
+          environment: "$GITHUB_REF_NAME"
 
   worker:
 
@@ -60,4 +55,4 @@ jobs:
         run: npm install
 
       - name: Remove Cloudflare worker
-        run: npm run worker -- remove --verbose --prefix $GITHUB_REF_NAME
+        run: "npm run --silent worker -- remove --prefix $GITHUB_HEAD_REF"

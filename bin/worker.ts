@@ -100,9 +100,8 @@ async function handle(program: Command, fn: (x: string) => void, args: any) {
 	if (isQuiet) logger.settings.minLevel = LOG_LEVELS.fatal;
 	if (isGithubAction) logger.settings.minLevel = LOG_LEVELS.fatal;
 	logger.debug(`Running action handler with args ${JSON.stringify(args)}`);
-	const workerName = process.env.WORKER_NAME
-		? cloudflareWorkerName(process.env.WORKER_NAME)
-		: cloudflareWorkerName(program.opts()['prefix']);
+	const prefix = program.opts()['prefix'];
+	const workerName = cloudflareWorkerName(prefix);
 	logger.debug(`Deploying cloudflare worker ${workerName}`);
 	fn(workerName);
 }
@@ -122,7 +121,7 @@ function main() {
 		.description('worker deployment tool')
 		.option('-v, --verbose', 'verbose output', false)
 		.option('-q, --quiet', 'quiet output (overrides verbose)', false)
-		.option('-p, --prefix', 'deployment name prefix', 'test');
+		.option('-p, --prefix [prefix]', 'deployment name prefix', 'test');
 	program.command('deploy').action((options) => handle(program, deploy, options));
 	program.command('remove').action((options) => handle(program, remove, options));
 	program.parse(process.argv);
