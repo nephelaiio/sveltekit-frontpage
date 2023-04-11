@@ -1,19 +1,19 @@
 ---
-name: Publish preview environment
+name: Publish production environment
 
 on:
 
   pull_request:
     types:
-      - opened
-      - reopened
-      - synchronize
+      - closed
+    branches:
+      - master
 
 jobs:
 
   worker:
 
-    name: deploy preview worker
+    name: deploy production worker
 
     runs-on: ubuntu-latest
 
@@ -42,11 +42,11 @@ jobs:
 
       - name: Record worker environment
         id: environment
-        run: echo "workerEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
+        run: echo "workerEnv=master" >> "$GITHUB_OUTPUT"
 
       - name: Deploy Cloudflare worker
         id: deploy
-        run: echo "workerUrl=$(npm run --silent worker -- deploy --prefix ${{ steps.environment.outputs.workerEnv }})" >> "$GITHUB_OUTPUT"
+        run: echo "workerUrl=$(npm run --silent worker -- deploy)" >> "$GITHUB_OUTPUT"
 
   environment:
 
