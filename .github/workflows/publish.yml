@@ -1,5 +1,5 @@
 ---
-name: Publish environment
+name: Publish project
 
 on:
 
@@ -14,7 +14,7 @@ jobs:
 
   deploy:
 
-    name: deploy worker
+    name: deploy project
 
     runs-on: ubuntu-latest
 
@@ -27,8 +27,8 @@ jobs:
 
     outputs:
 
-      workerEnv: ${{ steps.environment.outputs.workerEnv }}
-      workerUrl: ${{ steps.deploy.outputs.workerUrl }}
+      projectEnv: ${{ steps.environment.outputs.projectEnv }}
+      projectUrl: ${{ steps.deploy.outputs.projectUrl }}
 
     steps:
 
@@ -43,16 +43,16 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Record worker environment
+      - name: Record project environment
         id: environment
-        run: echo "workerEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
+        run: echo "projectEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy Cloudflare worker
+      - name: Deploy project
         id: deploy
-        run: echo "workerUrl=$(npm run --silent -- project deploy frontpage ${{ steps.environment.outputs.workerEnv }})" >> "$GITHUB_OUTPUT"
+        run: echo "projectUrl=$(npm run --silent -- project deploy frontpage ${{ steps.environment.outputs.projectEnv }})" >> "$GITHUB_OUTPUT"
 
-      - name: Debug Cloudflare worker url
-        run: echo ${{ steps.deploy.outputs.workerUrl }}
+      - name: Debug project url
+        run: echo ${{ steps.deploy.outputs.projectUrl }}
 
   environment:
 
@@ -63,12 +63,12 @@ jobs:
     name: create github environment
 
     environment:
-      name: "${{ needs.deploy.outputs.workerEnv }}"
-      url: "${{ needs.deploy.outputs.workerUrl }}"
+      name: "${{ needs.deploy.outputs.projectEnv }}"
+      url: "${{ needs.deploy.outputs.projectUrl }}"
 
     runs-on: ubuntu-latest
 
     steps:
 
       - name: Debug environment creation
-        run: echo "Deployed environment $GITHUB_HEAD_REF at url ${{ needs.worker.outputs.workerUrl }}"
+        run: echo "Deployed environment $GITHUB_HEAD_REF at url ${{ needs.deploy.outputs.projectUrl }}"
