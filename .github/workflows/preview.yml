@@ -46,7 +46,7 @@ jobs:
 
       - name: Deploy Cloudflare worker
         id: deploy
-        run: echo "workerUrl=$(npm run --silent worker -- deploy --environment ${{ steps.environment.outputs.workerEnv }})" >> "$GITHUB_OUTPUT"
+        run: echo "workerUrl=$(npm run --silent project -- deploy --environment ${{ steps.environment.outputs.workerEnv }})" >> "$GITHUB_OUTPUT"
 
   environment:
 
