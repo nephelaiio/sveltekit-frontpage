@@ -1,9 +1,0 @@
-name = "sveltekit-frontpage"
-compatibility_date = "2023-04-04"
-main = "./.cloudflare/worker.js"
-
-[site]
-bucket = "./.cloudflare/public"
-
-[build]
-command = "npm run build"
