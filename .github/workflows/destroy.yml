@@ -24,19 +24,19 @@ jobs:
           app-id: ${{ secrets.GH_APP_ENV_ID }}
           private-key: ${{ secrets.GH_APP_ENV_PRIVKEY }}
 
-      - name: Record worker environment
+      - name: Record project environment
         id: environment
-        run: echo "workerEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
+        run: echo "projectEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
 
       - name: Delete Github preview environment
         uses: strumwolf/delete-deployment-environment@v2
         with:
           token: ${{ steps.get-token.outputs.token }}
-          environment: ${{ steps.environment.outputs.workerEnv }}
+          environment: ${{ steps.environment.outputs.projectEnv }}
 
-  worker:
+  project:
 
-    name: delete preview worker
+    name: delete preview deployment
 
     runs-on: ubuntu-latest
 
@@ -60,5 +60,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Remove Cloudflare worker
+      - name: Destroy project
         run: "npm run -- project remove $GITHUB_REPOSITORY $GITHUB_HEAD_REF"
