@@ -49,4 +49,4 @@ jobs:
 
       - name: Deploy Cloudflare worker
         id: deploy
-        run: npm run -- project deploy frontpage ${{ steps.environment.outputs.workerEnv }} --verbose
+        run: npm run -- project deploy frontpage ${{ steps.environment.outputs.workerEnv }}
