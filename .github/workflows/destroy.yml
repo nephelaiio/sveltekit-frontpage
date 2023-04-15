@@ -69,4 +69,4 @@ jobs:
         run: npm install
 
       - name: Destroy project
-        run: "npm run --silent -- project remove --environment ${{ needs.deploy.outputs.projectEnv }} --head $GITHUB_HEAD_REF"
+        run: "npm run --silent -- project remove --environment ${{ needs.deploy.outputs.projectEnv }}"
