@@ -1,5 +1,5 @@
 ---
-name: Publish production environment
+name: Publish environment
 
 on:
 
@@ -14,7 +14,7 @@ jobs:
 
   worker:
 
-    name: deploy production worker
+    name: deploy worker
 
     runs-on: ubuntu-latest
 
@@ -49,23 +49,4 @@ jobs:
 
       - name: Deploy Cloudflare worker
         id: deploy
-        run: echo "workerUrl=$(npm run -- project deploy frontpage ${{ steps.environment.outputs.workerEnv }})" >> "$GITHUB_OUTPUT"
-
-  environment:
-
-    needs:
-
-      - worker
-
-    name: create github environment
-
-    environment:
-      name: "${{ needs.worker.outputs.workerEnv }}"
-      url: "${{ needs.worker.outputs.workerUrl }}"
-
-    runs-on: ubuntu-latest
-
-    steps:
-
-      - name: Debug environment creation
-        run: echo "Deployed environment $GITHUB_HEAD_REF at url ${{ needs.worker.outputs.workerUrl }}"
+        run: npm run -- project deploy frontpage ${{ steps.environment.outputs.workerEnv }} --verbose
