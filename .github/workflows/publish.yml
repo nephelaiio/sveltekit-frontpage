@@ -12,7 +12,7 @@ on:
 
 jobs:
 
-  worker:
+  deploy:
 
     name: deploy worker
 
@@ -49,4 +49,26 @@ jobs:
 
       - name: Deploy Cloudflare worker
         id: deploy
-        run: npm run -- project deploy frontpage ${{ steps.environment.outputs.workerEnv }}
+        run: echo "workerUrl=$(npm run -- project deploy frontpage ${{ steps.environment.outputs.workerEnv }})" >> "$GITHUB_OUTPUT"
+
+      - name: Debug Cloudflare worker url
+        run: echo ${{ steps.deploy.outputs.workerUrl }}
+
+  environment:
+
+    needs:
+
+      - deploy
+
+    name: create github environment
+
+    environment:
+      name: "${{ needs.deploy.outputs.workerEnv }}"
+      url: "${{ needs.deploy.outputs.workerUrl }}"
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Debug environment creation
+        run: echo "Deployed environment $GITHUB_HEAD_REF at url ${{ needs.worker.outputs.workerUrl }}"
