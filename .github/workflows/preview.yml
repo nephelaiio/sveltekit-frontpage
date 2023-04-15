@@ -1,5 +1,5 @@
 ---
-name: Publish project
+name: Preview project
 
 on:
 
@@ -8,7 +8,6 @@ on:
       - opened
       - reopened
       - synchronize
-      - closed
 
 jobs:
 
@@ -49,7 +48,6 @@ jobs:
 
       - name: Deploy project
         id: deploy
-
         run: echo "projectUrl=$(npm run --silent -- project deploy --environment ${{ steps.environment.outputs.projectEnv }})" >> "$GITHUB_OUTPUT"
 
       - name: Debug project url
