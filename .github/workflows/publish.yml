@@ -5,9 +5,10 @@ on:
 
   pull_request:
     types:
+      - opened
+      - reopened
+      - synchronize
       - closed
-    branches:
-      - master
 
 jobs:
 
@@ -44,11 +45,11 @@ jobs:
 
       - name: Record worker environment
         id: environment
-        run: echo "workerEnv=master" >> "$GITHUB_OUTPUT"
+        run: echo "workerEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
 
       - name: Deploy Cloudflare worker
         id: deploy
-        run: echo "workerUrl=$(npm run --silent project -- deploy --environment ${{ steps.environment.outputs.workerEnv }})" >> "$GITHUB_OUTPUT"
+        run: echo "workerUrl=$(npm run -- project deploy frontpage ${{ steps.environment.outputs.workerEnv }})" >> "$GITHUB_OUTPUT"
 
   environment:
 
