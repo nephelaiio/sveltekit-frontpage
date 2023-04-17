@@ -3,10 +3,14 @@ import type { ILogObj } from 'tslog';
 import { Command } from 'commander';
 import { execSync } from 'child_process';
 import { Logger } from 'tslog';
+import git from 'isomorphic-git';
+
 import * as fs from 'fs';
 import * as dotenv from 'dotenv';
 
-if (fs.existsSync(`${process.cwd()}/.env`)) {
+const cwd = process.cwd();
+
+if (fs.existsSync(`${cwd}/.env`)) {
 	dotenv.config({ path: `${process.cwd()}/.env` });
 }
 
@@ -37,15 +41,17 @@ async function genericAPI(
 	const uri = `${url}/${path}`;
 	logger.debug(`${method} ${uri}`);
 	async function apiReturn(result: Response) {
-		if (!(result.ok || (result.status == 404 && method == 'DELETE'))) {
+		if (!(result.ok && result.status != 404)) {
 			throw new Error(`${method} ${uri} failed with status ${result.status}`);
 		} else {
+			if (method == 'DELETE' || method == 'GET') {
+				return null;
+			}
 			if (result.status == 204) {
 				logger.debug(`${method} ${uri} succeeded with status ${result.status}`);
 				return null;
 			} else {
 				const response = await result.json();
-				logger.debug(`${method} ${uri} succeeded with status ${result.status}`);
 				return response;
 			}
 		}
@@ -99,29 +105,41 @@ function execute(command: string, mode: 'run' | 'exec' | 'cli' = 'exec'): string
 	}
 }
 
-async function deploy(name: string, environment: string, head: string): Promise<void> {
+const exec = (command: string): string => execute(command, 'exec');
+const run = (command: string): string => execute(command, 'run');
+
+async function deploy(
+	repository: string,
+	name: string,
+	environment: string,
+	head: string,
+	maxDeployments: number
+): Promise<void> {
 	logger.debug('Entering deploy command handler');
 	const allProjects = await cloudflareAPI(`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects`);
 	const projectsMatch = allProjects.result.filter((x: any) => x.name === name);
 	if (projectsMatch.length === 0) {
 		// create cloudflare pages project
-		execute(`wrangler pages project create ${name} --production-branch ${head}`);
+		exec(`wrangler pages project create ${name} --production-branch ${head}`);
 	}
-	// publish to cloudflare pages
-	// if path SVELTE_BUILD_DIR does not exist, wrangler will fail
 	if (!fs.existsSync(SVELTE_BUILD_DIR)) {
-		execute('build', 'run');
+		run('build');
 	}
-	const publish = execute(
+	const publish = exec(
 		`wrangler pages publish ${SVELTE_BUILD_DIR} --project-name ${name} --branch ${environment} --commit-dirty true`
 	);
 	const publishUrl = `${publish.split(' ').at(-1)}`.trim();
 	logger.debug(`Project deployed at url ${publishUrl}`);
 	console.log(publishUrl);
+	cleanGithubDeployments(repository, environment, maxDeployments);
 	logger.debug('Exiting deploy command handler');
 }
 
-async function cleanGithubDeployments(repository: string, environment: string): Promise<void> {
+async function cleanGithubDeployments(
+	repository: string,
+	environment: string,
+	maxDeployments: number
+): Promise<void> {
 	const allDeployments = await githubAPI(`repos/${repository}/deployments`);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const envDeployments = allDeployments.filter((x: any) => x.environment === environment);
@@ -134,9 +152,9 @@ async function cleanGithubDeployments(repository: string, environment: string): 
 	logger.debug(`Found ${allDeployments.length} total deployments`);
 	logger.debug(`Found ${sortedDeployments.length} environment deployments`);
 	logger.debug(sortedDeployments.map((x: any) => x.updated_at));
-	if (sortedDeployments.length > MAX_DEPLOYMENTS) {
+	if (sortedDeployments.length > maxDeployments) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const extraDeployments = sortedDeployments.slice(MAX_DEPLOYMENTS, sortedDeployments.length);
+		const extraDeployments = sortedDeployments.slice(maxDeployments, sortedDeployments.length);
 		logger.debug(`Removing ${extraDeployments.length} deployments`);
 		logger.debug(extraDeployments.map((x: any) => x.updated_at));
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -154,9 +172,13 @@ async function cleanGithubDeployments(repository: string, environment: string): 
 	}
 }
 
-async function clean(repository: string, environment: string): Promise<void> {
+async function clean(
+	repository: string,
+	environment: string,
+	maxDeployments: number
+): Promise<void> {
 	logger.debug('Entering clean command handler');
-	cleanGithubDeployments(repository, environment);
+	cleanGithubDeployments(repository, environment, maxDeployments);
 	logger.debug('Exiting clean command handler');
 }
 
@@ -175,7 +197,16 @@ function checkConfig() {
 	}
 }
 
-function main() {
+async function main() {
+	const branch = await git.currentBranch({ fs, dir: cwd });
+	const origin = await git.getConfig({ fs, dir: cwd, path: 'remote.origin.url' });
+	const repo = origin
+		.replace('git@', '')
+		.replace('https://', '')
+		.split(':')
+		.at(-1)
+		.replace('.git', '');
+	const project = repo.split('/').at(-1);
 	const program = new Command();
 	program
 		.version('0.0.1', '--version', 'output the current version')
@@ -183,33 +214,52 @@ function main() {
 		.helpOption('-h, --help', 'output usage information')
 		.option('-v, --verbose', 'verbose output', false)
 		.option('-q, --quiet', 'quiet output (overrides verbose)', false)
+		.option('-k, --insecure', 'disable ssl verification', false)
 		.hook('preAction', (program, _) => {
 			const isVerbose = program.opts()['verbose'];
 			const isQuiet = program.opts()['quiet'];
 			const isGithubAction = process.env.GITHUB_ACTIONS === 'true';
+			const isInsecure = program.opts()['insecure'];
 			if (isVerbose) logger.settings.minLevel = LOG_LEVELS.debug;
 			if (isQuiet) logger.settings.minLevel = LOG_LEVELS.fatal;
 			if (isGithubAction) logger.settings.minLevel = LOG_LEVELS.fatal;
+			if (isInsecure) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 		});
 	program
 		.command('deploy')
-		.argument('<name>', 'page project name')
-		.argument('<environment>', 'page environment')
-		.option('-h, --head [name]', 'head branch', 'master')
-		.action((name, environment, options, program) => {
-			deploy(name, environment, options.head);
+		.option('-r, --repository [repository]', 'github repository in <owner>/<repo> format', repo)
+		.option('-n, --name [name]', 'project page name', project)
+		.option('-e, --environment <environment>', 'environment', `${branch}`)
+		.option('-h, --head [branch]', 'head branch', 'master')
+		.option('-m, --max-deployments [deployments]', 'max deployments', `${MAX_DEPLOYMENTS}`)
+		.action((options, _) => {
+			// create cloudflare page deployment [y]
+			// create github environment [n]
+			// create github deployment for environment [n]
+			// prune github deployments for environment [y]
+			deploy(
+				options.repository,
+				options.name,
+				options.environment,
+				options.head,
+				Number(options.maxDeployments)
+			);
 		});
 	program
 		.command('clean')
-		.argument('<repository>', 'github repository in <owner>/<repo> format')
-		.argument('<environment>', 'page environment')
-		.action((repository, environment, options, program) => {
-			clean(repository, environment);
+		.option('-r, --repository [repository]', 'github repository in <owner>/<repo> format', repo)
+		.option('-n, --name [name]', 'project page name', project)
+		.option('-e, --environment <environment>', 'environment', `${branch}`)
+		.option('-m, --max-deployments [deployments]', 'max deployments', `${MAX_DEPLOYMENTS}`)
+		.action((options, _) => {
+			// delete cloudflare page deployment [y]
+			// prune github deployments for environment [y]
+			// delete github environment when requested
+			clean(options.repository, options.environment, Number(options.maxDeployments));
 		});
 	program.parse(process.argv);
 }
 
-//process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 checkConfig();
 try {
 	main();
