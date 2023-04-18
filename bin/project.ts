@@ -42,14 +42,17 @@ async function genericAPI(
 	logger.debug(`${method} ${uri}`);
 	async function apiReturn(result: Response) {
 		if (!(result.ok && result.status != 404)) {
+			logger.debug(`${method} ${uri} failed with status ${result.status}`);
+			logger.debug(`${method} ${uri} failed with message ${result.statusText}`);
 			throw new Error(`${method} ${uri} failed with status ${result.status}`);
 		} else {
-			if (method == 'DELETE' || method == 'GET') {
-				return null;
+			if (result.status == 404 && (method == 'DELETE' || method == 'GET')) {
+				logger.debug(`${method} ${uri} succeeded with empty response`);
+				return { result: [] };
 			}
 			if (result.status == 204) {
 				logger.debug(`${method} ${uri} succeeded with status ${result.status}`);
-				return null;
+				return { result: [] };
 			} else {
 				const response = await result.json();
 				return response;
@@ -131,8 +134,43 @@ async function deploy(
 	const publishUrl = `${publish.split(' ').at(-1)}`.trim();
 	logger.debug(`Project deployed at url ${publishUrl}`);
 	console.log(publishUrl);
+	logger.debug(`Creating Github environment '${environment}' for repository '${repository}'`);
+	createGithubDeployment(repository, environment, publishUrl);
 	cleanGithubDeployments(repository, environment, maxDeployments);
 	logger.debug('Exiting deploy command handler');
+}
+
+async function createGithubDeployment(repository: string, environment: string, url: string) {
+	logger.debug('Entering createGithubDeployment command handler');
+	logger.debug(`Creating Github environment '${environment}''`);
+	githubAPI(`repos/${repository}/environments/${environment}`, 'PUT', {
+		wait_timer: 0,
+		reviewers: null,
+		deployment_branch_policy: null
+	});
+	try {
+		const deployment = await githubAPI(`repos/${repository}/deployments`, 'POST', {
+			ref: environment,
+			environment: environment,
+			required_contexts: [],
+			transient_environment: true
+		});
+		logger.debug(`Created deployment with id ${deployment.id}`);
+		const deploymentStatus = await githubAPI(
+			`repos/${repository}/deployments/${deployment.id}/statuses`,
+			'POST',
+			{
+				state: 'success',
+				environment_url: url,
+				auto_inactive: true
+			}
+		);
+		logger.debug(`Created deployment status with id '${deploymentStatus.id}'`);
+	} catch (error: any) {
+		const env = environment;
+		logger.debug(`Failed to create deployment. Please check branch '${env}' exists in remote`);
+		process.exit(1);
+	}
 }
 
 async function cleanGithubDeployments(
@@ -140,6 +178,8 @@ async function cleanGithubDeployments(
 	environment: string,
 	maxDeployments: number
 ): Promise<void> {
+	logger.debug('Entering cleanGithubDeployments command handler');
+	logger.debug(`Listing deployments for repository '${repository}', environment '${environment}'`);
 	const allDeployments = await githubAPI(`repos/${repository}/deployments`);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const envDeployments = allDeployments.filter((x: any) => x.environment === environment);
@@ -149,8 +189,7 @@ async function cleanGithubDeployments(
 		const yDate = new Date(y.updated_at);
 		xDate >= yDate;
 	});
-	logger.debug(`Found ${allDeployments.length} total deployments`);
-	logger.debug(`Found ${sortedDeployments.length} environment deployments`);
+	logger.debug(`Found ${sortedDeployments.length} deployments for environment '${environment}'`);
 	logger.debug(sortedDeployments.map((x: any) => x.updated_at));
 	if (sortedDeployments.length > maxDeployments) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -159,7 +198,7 @@ async function cleanGithubDeployments(
 		logger.debug(extraDeployments.map((x: any) => x.updated_at));
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		extraDeployments.forEach(async (deployment: any) => {
-			logger.debug(`Removing deployment ${deployment.id}: ${deployment.updated_at}`);
+			logger.debug(`Removing deployment '${deployment.id}': '${deployment.updated_at}'`);
 			const inactive = { state: 'inactive' };
 			await githubAPI(
 				`repos/${repository}/deployments/${deployment.id}/statuses`,
@@ -167,7 +206,7 @@ async function cleanGithubDeployments(
 				inactive
 			);
 			await githubAPI(`repos/${repository}/deployments/${deployment.id}`, 'DELETE');
-			logger.debug(`Deployment ${deployment.id} removed`);
+			logger.debug(`Deployment '${deployment.id}' removed`);
 		});
 	}
 }
@@ -261,9 +300,4 @@ async function main() {
 }
 
 checkConfig();
-try {
-	main();
-} catch (error: any) {
-	logger.fatal(error.message);
-	process.exit(1);
-}
+main();
