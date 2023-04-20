@@ -228,8 +228,8 @@ async function clean(
 	logger.debug('Entering clean command handler');
 	await cleanGithubDeployments(repository, environment, maxDeployments);
 	if (environment != head) {
-		cleanGithubDeployments(repository, environment, 0);
-		githubAPI(`repos/${repository}/environments/${environment}`, 'DELETE');
+		await cleanGithubDeployments(repository, environment, 0);
+		await githubAPI(`repos/${repository}/environments/${environment}`, 'DELETE');
 	}
 	logger.debug('Exiting clean command handler');
 }
