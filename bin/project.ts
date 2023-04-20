@@ -18,6 +18,7 @@ const MAX_DEPLOYMENTS = 5;
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || null;
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || null;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || null;
+const GITHUB_REF = process.env.GITHUB_SHA || null;
 const SVELTE_BUILD_DIR = '.svelte-kit/cloudflare';
 const LOG_LEVELS = {
 	silly: 0,
@@ -42,14 +43,17 @@ async function genericAPI(
 	logger.debug(`${method} ${uri}`);
 	async function apiReturn(result: Response) {
 		if (!(result.ok && result.status != 404)) {
+			logger.debug(`${method} ${uri} failed with status ${result.status}`);
+			logger.debug(`${method} ${uri} failed with message ${result.statusText}`);
 			throw new Error(`${method} ${uri} failed with status ${result.status}`);
 		} else {
-			if (method == 'DELETE' || method == 'GET') {
-				return null;
+			if (result.status == 404 && (method == 'DELETE' || method == 'GET')) {
+				logger.debug(`${method} ${uri} succeeded with empty response`);
+				return { result: [] };
 			}
 			if (result.status == 204) {
 				logger.debug(`${method} ${uri} succeeded with status ${result.status}`);
-				return null;
+				return { result: [] };
 			} else {
 				const response = await result.json();
 				return response;
@@ -131,8 +135,63 @@ async function deploy(
 	const publishUrl = `${publish.split(' ').at(-1)}`.trim();
 	logger.debug(`Project deployed at url ${publishUrl}`);
 	console.log(publishUrl);
+	logger.debug(`Creating Github environment '${environment}' for repository '${repository}'`);
+	createGithubDeployment(repository, environment, publishUrl);
 	cleanGithubDeployments(repository, environment, maxDeployments);
 	logger.debug('Exiting deploy command handler');
+}
+
+async function listGithubDeployments(repository: string, environment: string) {
+	logger.debug(`Listing deployments for repository '${repository}', environment '${environment}'`);
+	const query = `ref=${environment}&environment=${environment}`;
+	const deployments = await githubAPI(`repos/${repository}/deployments?${query}`, 'GET');
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const sortedDeployments = deployments.sort((x: any, y: any) => {
+		const xDate = new Date(x.updated_at);
+		const yDate = new Date(y.updated_at);
+		xDate <= yDate;
+	});
+	return sortedDeployments;
+}
+
+async function getGithubDeployment(repository: string, environment: string) {
+	logger.debug(`Creating Github deployment for environment '${environment}'`);
+	const ref = GITHUB_REF != null ? GITHUB_REF : environment;
+	const deployments = await listGithubDeployments(repository, ref);
+	if (deployments.length > 0) {
+		const deployment = deployments[0];
+		logger.debug(`Found existing deployment with id ${deployment.id}`);
+		return deployment.id;
+	} else {
+		const deployment = await githubAPI(`repos/${repository}/deployments`, 'POST', {
+			ref: ref,
+			environment: environment,
+			required_contexts: [],
+			transient_environment: true
+		});
+		logger.debug(`Created deployment with id ${deployment.id}`);
+		return deployment.id;
+	}
+}
+
+async function createGithubDeployment(repository: string, environment: string, url: string) {
+	logger.debug(`Creating Github environment '${environment}''`);
+	githubAPI(`repos/${repository}/environments/${environment}`, 'PUT', {
+		wait_timer: 0,
+		reviewers: null,
+		deployment_branch_policy: null
+	});
+	const deploymentId = await getGithubDeployment(repository, environment);
+	const deploymentStatus = await githubAPI(
+		`repos/${repository}/deployments/${deploymentId}/statuses`,
+		'POST',
+		{
+			state: 'success',
+			environment_url: url,
+			auto_inactive: true
+		}
+	);
+	logger.debug(`Created deployment status with id '${deploymentStatus.id}'`);
 }
 
 async function cleanGithubDeployments(
@@ -140,26 +199,20 @@ async function cleanGithubDeployments(
 	environment: string,
 	maxDeployments: number
 ): Promise<void> {
-	const allDeployments = await githubAPI(`repos/${repository}/deployments`);
+	logger.debug('Entering cleanGithubDeployments command handler');
+	logger.debug(`Listing deployments for repository '${repository}', environment '${environment}'`);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const envDeployments = allDeployments.filter((x: any) => x.environment === environment);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const sortedDeployments = envDeployments.sort((x: any, y: any) => {
-		const xDate = new Date(x.updated_at);
-		const yDate = new Date(y.updated_at);
-		xDate >= yDate;
-	});
-	logger.debug(`Found ${allDeployments.length} total deployments`);
-	logger.debug(`Found ${sortedDeployments.length} environment deployments`);
+	const sortedDeployments = await listGithubDeployments(repository, environment);
+	logger.debug(`Found ${sortedDeployments.length} deployments for environment '${environment}'`);
 	logger.debug(sortedDeployments.map((x: any) => x.updated_at));
 	if (sortedDeployments.length > maxDeployments) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const extraDeployments = sortedDeployments.slice(maxDeployments, sortedDeployments.length);
+		const extraDeployments = sortedDeployments.slice(0, sortedDeployments.length - maxDeployments);
 		logger.debug(`Removing ${extraDeployments.length} deployments`);
 		logger.debug(extraDeployments.map((x: any) => x.updated_at));
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		extraDeployments.forEach(async (deployment: any) => {
-			logger.debug(`Removing deployment ${deployment.id}: ${deployment.updated_at}`);
+			logger.debug(`Removing deployment '${deployment.id}': '${deployment.updated_at}'`);
 			const inactive = { state: 'inactive' };
 			await githubAPI(
 				`repos/${repository}/deployments/${deployment.id}/statuses`,
@@ -167,7 +220,7 @@ async function cleanGithubDeployments(
 				inactive
 			);
 			await githubAPI(`repos/${repository}/deployments/${deployment.id}`, 'DELETE');
-			logger.debug(`Deployment ${deployment.id} removed`);
+			logger.debug(`Deployment '${deployment.id}' removed`);
 		});
 	}
 }
@@ -234,8 +287,8 @@ async function main() {
 		.option('-m, --max-deployments [deployments]', 'max deployments', `${MAX_DEPLOYMENTS}`)
 		.action((options, _) => {
 			// create cloudflare page deployment [y]
-			// create github environment [n]
-			// create github deployment for environment [n]
+			// create github environment [y]
+			// create github deployment for environment [y]
 			// prune github deployments for environment [y]
 			deploy(
 				options.repository,
@@ -261,9 +314,4 @@ async function main() {
 }
 
 checkConfig();
-try {
-	main();
-} catch (error: any) {
-	logger.fatal(error.message);
-	process.exit(1);
-}
+main();
