@@ -42,22 +42,19 @@ async function genericAPI(
 	const uri = `${url}/${path}`;
 	logger.debug(`${method} ${uri}`);
 	async function apiReturn(result: Response) {
-		if (!(result.ok && result.status != 404)) {
+		if (result.status == 204) {
+			logger.debug(`${method} ${uri} succeeded with status ${result.status}`);
+			return { result: [] };
+		} else if (result.status == 404 && (method == 'DELETE' || method == 'GET')) {
+			logger.debug(`${method} ${uri} succeeded with empty response`);
+			return { result: [] };
+		} else if (!result.ok) {
 			logger.debug(`${method} ${uri} failed with status ${result.status}`);
 			logger.debug(`${method} ${uri} failed with message ${result.statusText}`);
 			throw new Error(`${method} ${uri} failed with status ${result.status}`);
 		} else {
-			if (result.status == 404 && (method == 'DELETE' || method == 'GET')) {
-				logger.debug(`${method} ${uri} succeeded with empty response`);
-				return { result: [] };
-			}
-			if (result.status == 204) {
-				logger.debug(`${method} ${uri} succeeded with status ${result.status}`);
-				return { result: [] };
-			} else {
-				const response = await result.json();
-				return response;
-			}
+			const response = await result.json();
+			return response;
 		}
 	}
 	if (body != null) {
@@ -136,8 +133,8 @@ async function deploy(
 	logger.debug(`Project deployed at url ${publishUrl}`);
 	console.log(publishUrl);
 	logger.debug(`Creating Github environment '${environment}' for repository '${repository}'`);
-	createGithubDeployment(repository, environment, publishUrl);
-	cleanGithubDeployments(repository, environment, maxDeployments);
+	await createGithubDeployment(repository, environment, publishUrl);
+	await cleanGithubDeployments(repository, environment, maxDeployments);
 	logger.debug('Exiting deploy command handler');
 }
 
@@ -175,7 +172,6 @@ async function getGithubDeployment(repository: string, environment: string) {
 }
 
 async function createGithubDeployment(repository: string, environment: string, url: string) {
-	logger.debug(`Creating Github environment '${environment}''`);
 	githubAPI(`repos/${repository}/environments/${environment}`, 'PUT', {
 		wait_timer: 0,
 		reviewers: null,
@@ -200,11 +196,9 @@ async function cleanGithubDeployments(
 	maxDeployments: number
 ): Promise<void> {
 	logger.debug('Entering cleanGithubDeployments command handler');
-	logger.debug(`Listing deployments for repository '${repository}', environment '${environment}'`);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const sortedDeployments = await listGithubDeployments(repository, environment);
 	logger.debug(`Found ${sortedDeployments.length} deployments for environment '${environment}'`);
-	logger.debug(sortedDeployments.map((x: any) => x.updated_at));
 	if (sortedDeployments.length > maxDeployments) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const extraDeployments = sortedDeployments.slice(0, sortedDeployments.length - maxDeployments);
@@ -228,10 +222,15 @@ async function cleanGithubDeployments(
 async function clean(
 	repository: string,
 	environment: string,
+	head: string,
 	maxDeployments: number
 ): Promise<void> {
 	logger.debug('Entering clean command handler');
-	cleanGithubDeployments(repository, environment, maxDeployments);
+	await cleanGithubDeployments(repository, environment, maxDeployments);
+	if (environment != head) {
+		cleanGithubDeployments(repository, environment, 0);
+		githubAPI(`repos/${repository}/environments/${environment}`, 'DELETE');
+	}
 	logger.debug('Exiting clean command handler');
 }
 
@@ -303,12 +302,13 @@ async function main() {
 		.option('-r, --repository [repository]', 'github repository in <owner>/<repo> format', repo)
 		.option('-n, --name [name]', 'project page name', project)
 		.option('-e, --environment <environment>', 'environment', `${branch}`)
+		.option('-h, --head [branch]', 'head branch', 'master')
 		.option('-m, --max-deployments [deployments]', 'max deployments', `${MAX_DEPLOYMENTS}`)
 		.action((options, _) => {
 			// delete cloudflare page deployment [y]
 			// prune github deployments for environment [y]
 			// delete github environment when requested
-			clean(options.repository, options.environment, Number(options.maxDeployments));
+			clean(options.repository, options.environment, options.head, Number(options.maxDeployments));
 		});
 	program.parse(process.argv);
 }
