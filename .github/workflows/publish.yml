@@ -5,10 +5,9 @@ on:
 
   pull_request:
     types:
-      - opened
-      - reopened
-      - synchronize
       - closed
+    branches:
+      - master
 
 jobs:
 
@@ -45,7 +44,7 @@ jobs:
 
       - name: Record project environment
         id: environment
-        run: echo "projectEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
+        run: echo "projectEnv=$GITHUB_BASE_REF" >> "$GITHUB_OUTPUT"
 
       - name: Deploy project
         id: deploy

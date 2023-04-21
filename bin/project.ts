@@ -205,7 +205,7 @@ async function cleanGithubDeployments(
 		logger.debug(`Removing ${extraDeployments.length} deployments`);
 		logger.debug(extraDeployments.map((x: any) => x.updated_at));
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		extraDeployments.forEach(async (deployment: any) => {
+		for (const deployment of extraDeployments) {
 			logger.debug(`Removing deployment '${deployment.id}': '${deployment.updated_at}'`);
 			const inactive = { state: 'inactive' };
 			await githubAPI(
@@ -215,20 +215,72 @@ async function cleanGithubDeployments(
 			);
 			await githubAPI(`repos/${repository}/deployments/${deployment.id}`, 'DELETE');
 			logger.debug(`Deployment '${deployment.id}' removed`);
-		});
+		}
+	}
+}
+
+async function listPagesDeployments(name: string, environment: string | null = null) {
+	logger.debug(`Listing deployments for project '${name}'`);
+	const rawDeployments = await cloudflareAPI(
+		`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${name}/deployments`
+	);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const environmentDeployments = rawDeployments.result.filter((x: any) => {
+		const isTrigger = 'deployment_trigger' in x;
+		const isMetadata = 'metadata' in x['deployment_trigger'];
+		const isBranch = 'branch' in x['deployment_trigger']['metadata'];
+		const branch =
+			isTrigger && isMetadata && isBranch ? x['deployment_trigger']['metadata']['branch'] : null;
+		return branch === environment;
+	});
+	const deployments = environment != null ? environmentDeployments : rawDeployments.result;
+	const sortedDeployments = deployments.sort((x: any, y: any) => {
+		const xDate = new Date(x.created_on);
+		const yDate = new Date(y.created_on);
+		xDate <= yDate;
+	});
+	return sortedDeployments;
+}
+
+async function cleanPagesDeployments(
+	name: string,
+	environment: string | null = null,
+	maxDeployments: number
+) {
+	logger.debug('Clean Pages deployments');
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const sortedDeployments = await listPagesDeployments(name, environment);
+	logger.debug(`Found ${sortedDeployments.length} deployments for environment '${environment}'`);
+	if (sortedDeployments.length > 0) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const extraDeployments = sortedDeployments.slice(0, sortedDeployments.length - maxDeployments);
+		logger.debug(`Removing ${extraDeployments.length} deployments`);
+		logger.debug(extraDeployments.map((x: any) => x.created_on));
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		for (const deployment of extraDeployments) {
+			logger.debug(`Removing deployment '${deployment.id}': '${deployment.created_on}'`);
+			await cloudflareAPI(
+				`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${name}/deployments/${deployment.id}?force=true`,
+				'DELETE'
+			);
+			logger.debug(`Deployment '${deployment.id}' removed`);
+		}
 	}
 }
 
 async function clean(
 	repository: string,
+	name: string,
 	environment: string,
 	head: string,
 	maxDeployments: number
 ): Promise<void> {
 	logger.debug('Entering clean command handler');
 	await cleanGithubDeployments(repository, environment, maxDeployments);
+	await cleanPagesDeployments(name, environment, maxDeployments);
 	if (environment != head) {
 		await cleanGithubDeployments(repository, environment, 0);
+		await cleanPagesDeployments(name, environment, 0);
 		await githubAPI(`repos/${repository}/environments/${environment}`, 'DELETE');
 	}
 	logger.debug('Exiting clean command handler');
@@ -286,10 +338,6 @@ async function main() {
 		.option('-h, --head [branch]', 'head branch', 'master')
 		.option('-m, --max-deployments [deployments]', 'max deployments', `${MAX_DEPLOYMENTS}`)
 		.action((options, _) => {
-			// create cloudflare page deployment [y]
-			// create github environment [y]
-			// create github deployment for environment [y]
-			// prune github deployments for environment [y]
 			deploy(
 				options.repository,
 				options.name,
@@ -306,10 +354,13 @@ async function main() {
 		.option('-h, --head [branch]', 'head branch', 'master')
 		.option('-m, --max-deployments [deployments]', 'max deployments', `${MAX_DEPLOYMENTS}`)
 		.action((options, _) => {
-			// delete cloudflare page deployment [y]
-			// prune github deployments for environment [y]
-			// delete github environment when requested
-			clean(options.repository, options.environment, options.head, Number(options.maxDeployments));
+			clean(
+				options.repository,
+				options.name,
+				options.environment,
+				options.head,
+				Number(options.maxDeployments)
+			);
 		});
 	program.parse(process.argv);
 }
