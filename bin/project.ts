@@ -270,11 +270,9 @@ async function main() {
 		.hook('preAction', (program, _) => {
 			const isVerbose = program.opts()['verbose'];
 			const isQuiet = program.opts()['quiet'];
-			const isGithubAction = process.env.GITHUB_ACTIONS === 'true';
 			const isInsecure = program.opts()['insecure'];
 			if (isVerbose) logger.settings.minLevel = LOG_LEVELS.debug;
 			if (isQuiet) logger.settings.minLevel = LOG_LEVELS.fatal;
-			if (isGithubAction) logger.settings.minLevel = LOG_LEVELS.fatal;
 			if (isInsecure) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 		});
 	program
