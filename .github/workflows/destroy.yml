@@ -36,5 +36,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Record project environment
+        id: environment
+        run: echo "projectEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Debug project environment
+        run: echo ${{ steps.environment.outputs.projectEnv }}
+
       - name: Delete Github preview environment
-        run: "npm run --silent -- project clean --environment $GITHUB_HEAD_REF"
+        run: "npm run --silent -- project clean --environment ${{ steps.environment.outputs.projectEnv }}"
