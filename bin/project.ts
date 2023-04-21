@@ -255,9 +255,12 @@ async function main() {
 	const repo = origin
 		.replace('git@', '')
 		.replace('https://', '')
-		.split(':')
-		.at(-1)
-		.replace('.git', '');
+		.replace('.git', '')
+		.replace(':', '/')
+		.split('/')
+		.slice(-2)
+		.join('/');
+	logger.info(`Managing deployments for repository '${repo}'`);
 	const project = repo.split('/').at(-1);
 	const program = new Command();
 	program
