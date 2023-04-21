@@ -49,27 +49,4 @@ jobs:
 
       - name: Deploy project
         id: deploy
-
-        run: echo "projectUrl=$(npm run --silent -- project deploy --environment ${{ steps.environment.outputs.projectEnv }})" >> "$GITHUB_OUTPUT"
-
-      - name: Debug project url
-        run: echo ${{ steps.deploy.outputs.projectUrl }}
-
-  environment:
-
-    needs:
-
-      - deploy
-
-    name: create github environment
-
-    environment:
-      name: "${{ needs.deploy.outputs.projectEnv }}"
-      url: "${{ needs.deploy.outputs.projectUrl }}"
-
-    runs-on: ubuntu-latest
-
-    steps:
-
-      - name: Debug environment creation
-        run: echo "Deployed environment $GITHUB_HEAD_REF at url ${{ needs.deploy.outputs.projectUrl }}"
+        run: echo "npm run --silent -- project deploy --environment ${{ steps.environment.outputs.projectEnv }} --verbose"

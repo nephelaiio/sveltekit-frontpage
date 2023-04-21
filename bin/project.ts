@@ -131,7 +131,6 @@ async function deploy(
 	);
 	const publishUrl = `${publish.split(' ').at(-1)}`.trim();
 	logger.debug(`Project deployed at url ${publishUrl}`);
-	console.log(publishUrl);
 	logger.debug(`Creating Github environment '${environment}' for repository '${repository}'`);
 	await createGithubDeployment(repository, environment, publishUrl);
 	await cleanGithubDeployments(repository, environment, maxDeployments);
@@ -143,6 +142,7 @@ async function listGithubDeployments(repository: string, environment: string) {
 	const query = `ref=${environment}&environment=${environment}`;
 	const deployments = await githubAPI(`repos/${repository}/deployments?${query}`, 'GET');
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	logger.debug(JSON.stringify(deployments, null, 2));
 	const sortedDeployments = deployments.sort((x: any, y: any) => {
 		const xDate = new Date(x.updated_at);
 		const yDate = new Date(y.updated_at);
@@ -255,9 +255,12 @@ async function main() {
 	const repo = origin
 		.replace('git@', '')
 		.replace('https://', '')
-		.split(':')
-		.at(-1)
-		.replace('.git', '');
+		.replace('.git', '')
+		.replace(':', '/')
+		.split('/')
+		.slice(-2)
+		.join('/');
+	logger.info(`Managing deployments for repository '${repo}'`);
 	const project = repo.split('/').at(-1);
 	const program = new Command();
 	program
@@ -270,11 +273,9 @@ async function main() {
 		.hook('preAction', (program, _) => {
 			const isVerbose = program.opts()['verbose'];
 			const isQuiet = program.opts()['quiet'];
-			const isGithubAction = process.env.GITHUB_ACTIONS === 'true';
 			const isInsecure = program.opts()['insecure'];
 			if (isVerbose) logger.settings.minLevel = LOG_LEVELS.debug;
 			if (isQuiet) logger.settings.minLevel = LOG_LEVELS.fatal;
-			if (isGithubAction) logger.settings.minLevel = LOG_LEVELS.fatal;
 			if (isInsecure) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 		});
 	program
