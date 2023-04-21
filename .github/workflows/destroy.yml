@@ -15,45 +15,13 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    outputs:
-
-      projectEnv: ${{ steps.environment.outputs.projectEnv }}
-
-    steps:
-
-      - name: Get GitHub App token
-        uses: navikt/github-app-token-generator@a3831f44404199df32d8f39f7c0ad9bb8fa18b1c
-        id: get-token
-        with:
-          app-id: ${{ secrets.GH_APP_ENV_ID }}
-          private-key: ${{ secrets.GH_APP_ENV_PRIVKEY }}
-
-      - name: Record project environment
-        id: environment
-        run: echo "projectEnv=$GITHUB_HEAD_REF" >> "$GITHUB_OUTPUT"
-
-      - name: Delete Github preview environment
-        uses: strumwolf/delete-deployment-environment@v2
-        with:
-          token: ${{ steps.get-token.outputs.token }}
-          environment: ${{ steps.environment.outputs.projectEnv }}
-
-  project:
-
-    name: delete preview deployment
-
-    runs-on: ubuntu-latest
-
-    needs:
-
-      - environment
-
     env:
 
       CLOUDFLARE_API_TOKEN: ${{ secrets.CF_ACCOUNT_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       GITHUB_USER: ${{ secrets.GH_USER }}
       GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
 
     steps:
 
@@ -68,5 +36,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Destroy project
-        run: "npm run --silent -- project clean --environment ${{ needs.deploy.outputs.projectEnv }}"
+      - name: Delete Github preview environment
+        run: "npm run --silent -- project clean --environment $GITHUB_HEAD_REF"
