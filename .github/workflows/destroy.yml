@@ -44,4 +44,4 @@ jobs:
         run: echo ${{ steps.environment.outputs.projectEnv }}
 
       - name: Delete Github preview environment
-        run: "npm run --silent -- project clean --environment ${{ steps.environment.outputs.projectEnv }}"
+        run: "npm run --silent -- project clean --environment ${{ steps.environment.outputs.projectEnv }} --verbose"

@@ -260,7 +260,6 @@ async function main() {
 		.split('/')
 		.slice(-2)
 		.join('/');
-	logger.info(`Managing deployments for repository '${repo}'`);
 	const project = repo.split('/').at(-1);
 	const program = new Command();
 	program
@@ -277,6 +276,7 @@ async function main() {
 			if (isVerbose) logger.settings.minLevel = LOG_LEVELS.debug;
 			if (isQuiet) logger.settings.minLevel = LOG_LEVELS.fatal;
 			if (isInsecure) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+			logger.info(`Managing deployments for repository '${repo}'`);
 		});
 	program
 		.command('deploy')
