@@ -142,7 +142,6 @@ async function listGithubDeployments(repository: string, environment: string) {
 	const query = `ref=${environment}&environment=${environment}`;
 	const deployments = await githubAPI(`repos/${repository}/deployments?${query}`, 'GET');
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	logger.debug(JSON.stringify(deployments, null, 2));
 	const sortedDeployments = deployments.sort((x: any, y: any) => {
 		const xDate = new Date(x.updated_at);
 		const yDate = new Date(y.updated_at);
