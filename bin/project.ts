@@ -136,7 +136,9 @@ async function deploy(
 	await createGithubDeployment(repository, environment, publishUrl);
 	await cleanGithubDeployments(repository, environment, maxDeployments);
 	await cleanPagesDeployments(name, environment, maxDeployments);
+	logger.debug(envVars);
 	envVars.forEach((envVar: string) => addPageEnvvar(name, envVar, process.env[envVar] || null));
+	logger.debug(secrets);
 	secrets.forEach((secret: string) => addPageSecret(name, secret, process.env[secret] || null));
 	const projectType = environment == head ? 'Production' : 'Preview';
 	logger.debug(`${projectType} deployment published at url ${publishUrl}`);
@@ -250,7 +252,6 @@ async function listPagesDeployments(page: string, environment: string | null = n
 	);
 	const rawDeployments = deploymentResults || { result: [] };
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	logger.debug(rawDeployments);
 	const environmentDeployments = rawDeployments.result.filter((x: any) => {
 		const isTrigger = 'deployment_trigger' in x;
 		const isMetadata = 'metadata' in x['deployment_trigger'];
@@ -435,7 +436,6 @@ async function main() {
 		.option('-v, --variable <env>', 'pages environment variable', [])
 		.action((options, _) => {
 			const { repository, environment, head } = program.opts();
-			console.log(`Branch is ${environment}`);
 			checks.push(checkSecrets(options.secret));
 			checks.push(checkEnvVars(options.variable));
 			Promise.all(checks).then(() => {
