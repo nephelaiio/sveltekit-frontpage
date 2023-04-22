@@ -114,27 +114,26 @@ async function deploy(
 	name: string,
 	environment: string,
 	head: string,
-	maxDeployments: number
+	maxDeployments: number,
+	buildDir: string = SVELTE_BUILD_DIR
 ): Promise<void> {
-	logger.debug('Entering deploy command handler');
+	logger.debug(`Deploying project ${name}, environment ${environment} from ${repository}`);
 	const allProjects = await cloudflareAPI(`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects`);
 	const projectsMatch = allProjects.result.filter((x: any) => x.name === name);
 	if (projectsMatch.length === 0) {
-		// create cloudflare pages project
 		exec(`wrangler pages project create ${name} --production-branch ${head}`);
 	}
-	if (!fs.existsSync(SVELTE_BUILD_DIR)) {
+	if (!fs.existsSync(buildDir)) {
 		run('build');
 	}
 	const publish = exec(
-		`wrangler pages publish ${SVELTE_BUILD_DIR} --project-name ${name} --branch ${environment} --commit-dirty true`
+		`wrangler pages publish ${buildDir} --project-name ${name} --branch ${environment} --commit-dirty true`
 	);
 	const publishUrl = `${publish.split(' ').at(-1)}`.trim();
-	logger.debug(`Project deployed at url ${publishUrl}`);
-	logger.debug(`Creating Github environment '${environment}' for repository '${repository}'`);
 	await createGithubDeployment(repository, environment, publishUrl);
 	await cleanGithubDeployments(repository, environment, maxDeployments);
-	logger.debug('Exiting deploy command handler');
+	const projectType = environment == head ? 'Production' : 'Preview';
+	logger.debug(`${projectType} deployment published at url ${publishUrl}`);
 }
 
 async function listGithubDeployments(repository: string, environment: string) {
@@ -147,11 +146,14 @@ async function listGithubDeployments(repository: string, environment: string) {
 		const yDate = new Date(y.updated_at);
 		xDate <= yDate;
 	});
+	logger.debug(
+		`Found ${sortedDeployments.length} deployments for repository '${repository}', environment '${environment}'`
+	);
 	return sortedDeployments;
 }
 
-async function getGithubDeployment(repository: string, environment: string) {
-	logger.debug(`Creating Github deployment for environment '${environment}'`);
+async function initGithubDeployment(repository: string, environment: string) {
+	logger.debug(`Retrieving Github deployment for environment '${environment}'`);
 	const ref = GITHUB_REF != null ? GITHUB_REF : environment;
 	const deployments = await listGithubDeployments(repository, ref);
 	if (deployments.length > 0) {
@@ -171,12 +173,17 @@ async function getGithubDeployment(repository: string, environment: string) {
 }
 
 async function createGithubDeployment(repository: string, environment: string, url: string) {
-	githubAPI(`repos/${repository}/environments/${environment}`, 'PUT', {
+	logger.debug(
+		`Creating Github deployment for repository '${repository}', environment '${environment}'`
+	);
+	await githubAPI(`repos/${repository}/environments/${environment}`, 'PUT', {
 		wait_timer: 0,
 		reviewers: null,
 		deployment_branch_policy: null
 	});
-	const deploymentId = await getGithubDeployment(repository, environment);
+	const deploymentId = await initGithubDeployment(repository, environment);
+	logger.debug(`Created deployment with id '${deploymentId}'`);
+	logger.debug(`Creating Github deployment status for deployment '${deploymentId}'`);
 	const deploymentStatus = await githubAPI(
 		`repos/${repository}/deployments/${deploymentId}/statuses`,
 		'POST',
@@ -194,7 +201,6 @@ async function cleanGithubDeployments(
 	environment: string,
 	maxDeployments: number
 ): Promise<void> {
-	logger.debug('Entering cleanGithubDeployments command handler');
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const sortedDeployments = await listGithubDeployments(repository, environment);
 	logger.debug(`Found ${sortedDeployments.length} deployments for environment '${environment}'`);
@@ -219,7 +225,7 @@ async function cleanGithubDeployments(
 }
 
 async function listPagesDeployments(name: string, environment: string | null = null) {
-	logger.debug(`Listing deployments for project '${name}'`);
+	logger.debug(`Listing Cloudflare page deployments for project '${name}'`);
 	const rawDeployments = await cloudflareAPI(
 		`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${name}/deployments`
 	);
@@ -238,6 +244,9 @@ async function listPagesDeployments(name: string, environment: string | null = n
 		const yDate = new Date(y.created_on);
 		xDate <= yDate;
 	});
+	logger.debug(
+		`Found ${sortedDeployments.length} Cloudflare page deployments for project '${name}'`
+	);
 	return sortedDeployments;
 }
 
@@ -274,15 +283,18 @@ async function clean(
 	head: string,
 	maxDeployments: number
 ): Promise<void> {
-	logger.debug('Entering clean command handler');
+	const projectType = environment == head ? 'production' : 'preview';
+	logger.debug(`Cleaning up ${projectType} environment ${environment} for project ${name}`);
 	await cleanGithubDeployments(repository, environment, maxDeployments);
 	await cleanPagesDeployments(name, environment, maxDeployments);
 	if (environment != head) {
+		logger.debug(`Destroying ${projectType} environment ${environment} for  project ${name}`);
 		await cleanGithubDeployments(repository, environment, 0);
 		await cleanPagesDeployments(name, environment, 0);
 		await githubAPI(`repos/${repository}/environments/${environment}`, 'DELETE');
+		logger.debug(`Destroyed ${projectType} environment ${environment} for  project ${name}`);
 	}
-	logger.debug('Exiting clean command handler');
+	logger.debug(`Cleaned up ${projectType} environment ${environment} for project ${name}`);
 }
 
 function checkConfig() {
@@ -336,13 +348,15 @@ async function main() {
 		.option('-e, --environment <environment>', 'environment', `${branch}`)
 		.option('-h, --head [branch]', 'head branch', 'master')
 		.option('-m, --max-deployments [deployments]', 'max deployments', `${MAX_DEPLOYMENTS}`)
+		.option('-d, --directory [directory]', 'build directory', `${SVELTE_BUILD_DIR}`)
 		.action((options, _) => {
 			deploy(
 				options.repository,
 				options.name,
 				options.environment,
 				options.head,
-				Number(options.maxDeployments)
+				Number(options.maxDeployments),
+				options.directory
 			);
 		});
 	program
