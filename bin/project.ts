@@ -288,11 +288,11 @@ async function clean(
 	await cleanGithubDeployments(repository, environment, maxDeployments);
 	await cleanPagesDeployments(name, environment, maxDeployments);
 	if (environment != head) {
-		logger.debug(`Destroying ${projectType} environment ${environment} for  project ${name}`);
+		logger.debug(`Destroying ${projectType} environment ${environment} for project ${name}`);
 		await cleanGithubDeployments(repository, environment, 0);
 		await cleanPagesDeployments(name, environment, 0);
 		await githubAPI(`repos/${repository}/environments/${environment}`, 'DELETE');
-		logger.debug(`Destroyed ${projectType} environment ${environment} for  project ${name}`);
+		logger.debug(`Destroyed ${projectType} environment ${environment} for project ${name}`);
 	}
 	logger.debug(`Cleaned up ${projectType} environment ${environment} for project ${name}`);
 }
