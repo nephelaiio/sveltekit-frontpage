@@ -50,4 +50,7 @@ jobs:
 
       - name: Deploy project
         id: deploy
-        run: echo "npm run --silent -- project deploy --environment ${{ steps.environment.outputs.projectEnv }} --verbose"
+        run: "npm run --silent -- project deploy --environment ${{ steps.environment.outputs.projectEnv }} --verbose"
+
+      - name: Debug project url
+        run: echo ${{ steps.deploy.outputs.projectUrl }}
