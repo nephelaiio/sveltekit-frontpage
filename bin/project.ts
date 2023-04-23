@@ -370,22 +370,29 @@ async function checkEnvironment() {
 	}
 }
 
-async function checkRepository(repository: string, environment: string, head: string) {
+async function checkRepository(
+	repository: string,
+	environment: string,
+	head: string,
+	operation: string
+) {
 	logger.debug('Validating source repository settings');
 	const repo = await githubAPI(`repos/${repository}`, 'GET');
 	if (!repo) {
 		logger.fatal(`Repository '${repository}' not found`);
 		process.exit(1);
 	}
-	const branch = await githubAPI(`repos/${repository}/branches/${environment}`, 'GET');
-	if (!branch) {
-		logger.fatal(`Deploy branch '${environment}' for repository '${repository}' not found`);
-		process.exit(1);
-	}
 	const master = await githubAPI(`repos/${repository}/branches/${head}`, 'GET');
 	if (!master) {
 		logger.fatal(`Master branch '${head}' for repository '${repository}' not found`);
 		process.exit(1);
+	}
+	if (operation == 'deploy') {
+		const branch = await githubAPI(`repos/${repository}/branches/${environment}`, 'GET');
+		if (!branch) {
+			logger.fatal(`Deploy branch '${environment}' for repository '${repository}' not found`);
+			process.exit(1);
+		}
 	}
 	logger.debug('Source repository validation successful');
 }
@@ -448,7 +455,6 @@ async function main() {
 			const { repository, environment, head } = program.opts();
 			logger.info(`Validating deployment parameters`);
 			checks.push(checkEnvironment());
-			checks.push(checkRepository(repository, environment, head));
 		});
 
 	program
@@ -460,6 +466,7 @@ async function main() {
 		.option('-v, --variable <env>', 'page environment variable', collect, [])
 		.action((options, _) => {
 			const { repository, environment, head } = program.opts();
+			checks.push(checkRepository(repository, environment, head, 'deploy'));
 			checks.push(checkSecrets(options.secret));
 			checks.push(checkEnvVars(options.variable));
 			Promise.all(checks).then(() => {
@@ -484,6 +491,7 @@ async function main() {
 		.option('-m, --max-deployments [deployments]', 'max deployments', `${MAX_DEPLOYMENTS}`)
 		.action((options, _) => {
 			const { repository, environment, head } = program.opts();
+			checks.push(checkRepository(repository, environment, head, 'clean'));
 			Promise.all(checks).then(() => {
 				logger.info(`Cleaning deployments for repository '${repo}'`);
 				clean(repository, options.name, environment, head, Number(options.maxDeployments));
