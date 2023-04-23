@@ -136,9 +136,7 @@ async function deploy(
 	await createGithubDeployment(repository, environment, publishUrl);
 	await cleanGithubDeployments(repository, environment, maxDeployments);
 	await cleanPagesDeployments(name, environment, maxDeployments);
-	logger.debug(envVars);
 	envVars.forEach((envVar: string) => addPageEnvvar(name, envVar, process.env[envVar] || null));
-	logger.debug(secrets);
 	secrets.forEach((secret: string) => addPageSecret(name, secret, process.env[secret] || null));
 	const projectType = environment == head ? 'Production' : 'Preview';
 	logger.debug(`${projectType} deployment published at url ${publishUrl}`);
@@ -353,10 +351,9 @@ async function checkEnvironment() {
 }
 
 async function checkRepository(repository: string, environment: string, head: string) {
-	console.debug('Validating source repository settings');
+	logger.debug('Validating source repository settings');
 	const repo = await githubAPI(`repos/${repository}`, 'GET');
 	if (!repo) {
-		logger.debug(repo);
 		logger.fatal(`Repository '${repository}' not found`);
 		process.exit(1);
 	}
@@ -370,31 +367,29 @@ async function checkRepository(repository: string, environment: string, head: st
 		logger.fatal(`Master branch '${head}' for repository '${repository}' not found`);
 		process.exit(1);
 	}
-	console.debug('Source repository validation successful');
+	logger.debug('Source repository validation successful');
 }
 
 async function checkSecrets(secrets: string[]) {
-	console.debug('Checking secret variables');
-	console.debug(secrets);
+	logger.debug('Checking secret variables');
 	secrets.forEach((s) => {
 		if (!process.env[s]) {
 			logger.fatal(`Environment variable '${s}' is not set`);
 			process.exit(1);
 		}
 	});
-	console.debug('Secret validation successful');
+	logger.debug('Secret validation successful');
 }
 
 async function checkEnvVars(vars: string[]) {
-	console.debug('Checking environment variables');
-	console.debug(vars);
+	logger.debug('Checking environment variables');
 	vars.forEach((v) => {
 		if (!process.env[v]) {
 			logger.fatal(`Environment variable '${v}' is not set`);
 			process.exit(1);
 		}
 	});
-	console.debug('Environment validation successful');
+	logger.debug('Environment validation successful');
 }
 
 async function main() {
@@ -411,6 +406,7 @@ async function main() {
 	const project = repo.split('/').at(-1);
 	const program = new Command();
 	const checks: Promise<void>[] = [];
+	const collect = (value: string, previous: string[]) => previous.concat([value]);
 
 	program
 		.version('0.0.1', '--version', 'output the current version')
@@ -440,8 +436,8 @@ async function main() {
 		.option('-n, --name [name]', 'project page name', project)
 		.option('-m, --max-deployments [deployments]', 'max deployments', `${MAX_DEPLOYMENTS}`)
 		.option('-d, --directory [directory]', 'build directory', `${SVELTE_BUILD_DIR}`)
-		.option('-s, --secret <secret>', 'pages secret', [])
-		.option('-v, --variable <env>', 'pages environment variable', [])
+		.option('-s, --secret <secret>', 'page environment secret', collect, [])
+		.option('-v, --variable <env>', 'page environment variable', collect, [])
 		.action((options, _) => {
 			const { repository, environment, head } = program.opts();
 			checks.push(checkSecrets(options.secret));
