@@ -127,12 +127,12 @@ async function deploy(
 	const publishArguments = `--project-name ${name} --branch ${environment} --commit-dirty true`;
 	const publishOutput = exec(`${publishCommand} ${publishArguments}`);
 	const publishUrl = `${publishOutput.split(' ').at(-1)}`.trim();
+	const envMap = (vars: string[]) =>
+		vars.map((varName) => ({ name: varName, value: `${process.env[varName]}` }));
+	await addPageVariables(name, environment, head, envMap(variables), envMap(secrets));
 	await createGithubDeployment(repository, environment, publishUrl);
 	await cleanGithubDeployments(repository, environment, maxDeployments);
 	await cleanPagesDeployments(name, environment, maxDeployments);
-	const envMap = (vars: string[]) =>
-		vars.map((varName) => ({ name: varName, value: `${process.env[varName]}` }));
-	addPageVariables(name, environment, head, envMap(variables), envMap(secrets));
 	const projectType = environment == head ? 'Production' : 'Preview';
 	logger.debug(`${projectType} deployment published at url ${publishUrl}`);
 }
