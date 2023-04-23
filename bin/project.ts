@@ -132,7 +132,7 @@ async function deploy(
 	await cleanPagesDeployments(name, environment, maxDeployments);
 	const envMap = (vars: string[]) =>
 		vars.map((varName) => ({ name: varName, value: `${process.env[varName]}` }));
-	addPageVariables(name, envMap(variables), envMap(secrets));
+	addPageVariables(name, environment, head, envMap(variables), envMap(secrets));
 	const projectType = environment == head ? 'Production' : 'Preview';
 	logger.debug(`${projectType} deployment published at url ${publishUrl}`);
 }
@@ -299,6 +299,8 @@ async function cleanPagesDeployments(
 
 async function addPageVariables(
 	page: string,
+	environment: string,
+	head: string,
 	variables: { name: string; value: string }[],
 	secrets: { name: string; value: string }[]
 ) {
@@ -314,20 +316,22 @@ async function addPageVariables(
 			.map((variable) => ({ [variable.name]: { value: variable.value, type: 'secret_text' } }))
 			.reduce((a, x) => ({ ...a, ...x }), {});
 	};
-	const pageData = {
+	const configSection = (environment == head && 'production') || 'preview';
+	const pageData = await cloudflareAPI(`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${page}`);
+	const baseData = { deployment_configs: pageData.deployment_configs };
+	const patchData = {
 		deployment_configs: {
-			production: {
+			[configSection]: {
 				compatibility_date: '2022-01-01',
 				compatibility_flags: ['url_standard'],
 				env_vars: { ...varMap(variables), ...secretMap(secrets) }
 			}
 		}
 	};
-	await cloudflareAPI(
-		`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${page}`,
-		'PATCH',
-		pageData
-	);
+	await cloudflareAPI(`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${page}`, 'PATCH', {
+		...baseData,
+		...patchData
+	});
 }
 
 async function clean(
