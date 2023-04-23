@@ -48,7 +48,10 @@ jobs:
 
       - name: Deploy project
         id: deploy
-        run: "npm run --silent -- project deploy --environment ${{ steps.environment.outputs.projectEnv }} --verbose"
+        run: >
+          npm run --silent -- project deploy --verbose
+          --environment ${{ steps.environment.outputs.projectEnv }}
+          --secret GITHUB_TOKEN
 
       - name: Debug project url
         run: echo ${{ steps.deploy.outputs.projectUrl }}
