@@ -132,7 +132,7 @@ async function deploy(
 	await cleanPagesDeployments(name, environment, maxDeployments);
 	const envMap = (vars: string[]) =>
 		vars.map((varName) => ({ name: varName, value: `${process.env[varName]}` }));
-	addPageVariables(name, envMap(secrets), envMap(variables));
+	addPageVariables(name, envMap(variables), envMap(secrets));
 	const projectType = environment == head ? 'Production' : 'Preview';
 	logger.debug(`${projectType} deployment published at url ${publishUrl}`);
 }
