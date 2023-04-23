@@ -272,14 +272,11 @@ async function cleanPagesDeployments(
 ) {
 	logger.debug('Clean Pages deployments');
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const allDeployments = await listPagesDeployments(page, environment);
-	const matchDeployments = allDeployments.filter(
-		(x: any) => x.latest_stage.name === 'deploy' && x.latest_stage.ended_on
-	);
-	logger.debug(`Found ${matchDeployments.length} deployments for environment '${environment}'`);
-	if (matchDeployments.length > 0) {
+	const deployments = await listPagesDeployments(page, environment);
+	logger.debug(`Found ${deployments.length} deployments for environment '${environment}'`);
+	if (deployments.length > 0) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const extraDeployments = matchDeployments.slice(0, matchDeployments.length - maxDeployments);
+		const extraDeployments = deployments.slice(0, deployments.length - maxDeployments);
 		logger.debug(`Removing ${extraDeployments.length} deployments`);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		for (const deployment of extraDeployments) {
