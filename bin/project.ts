@@ -353,6 +353,7 @@ async function checkEnvironment() {
 }
 
 async function checkRepository(repository: string, environment: string, head: string) {
+	console.debug('Validating source repository settings');
 	const repo = await githubAPI(`repos/${repository}`, 'GET');
 	if (!repo) {
 		logger.debug(repo);
@@ -369,24 +370,31 @@ async function checkRepository(repository: string, environment: string, head: st
 		logger.fatal(`Master branch '${head}' for repository '${repository}' not found`);
 		process.exit(1);
 	}
+	console.debug('Source repository validation successful');
 }
 
 async function checkSecrets(secrets: string[]) {
+	console.debug('Checking secret variables');
+	console.debug(secrets);
 	secrets.forEach((s) => {
 		if (!process.env[s]) {
 			logger.fatal(`Environment variable '${s}' is not set`);
 			process.exit(1);
 		}
 	});
+	console.debug('Secret validation successful');
 }
 
 async function checkEnvVars(vars: string[]) {
+	console.debug('Checking environment variables');
+	console.debug(vars);
 	vars.forEach((v) => {
 		if (!process.env[v]) {
 			logger.fatal(`Environment variable '${v}' is not set`);
 			process.exit(1);
 		}
 	});
+	console.debug('Environment validation successful');
 }
 
 async function main() {
