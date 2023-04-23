@@ -33,10 +33,12 @@ const LOG_LEVELS = {
 
 const logger: Logger<ILogObj> = new Logger({ name: 'worker', minLevel: LOG_LEVELS.info });
 
+type ApiMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+
 async function genericAPI(
 	url: string,
 	path: string,
-	method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+	method: ApiMethod = 'GET',
 	headers: HeadersInit,
 	body: object | null = null
 ) {
@@ -67,11 +69,7 @@ async function genericAPI(
 	}
 }
 
-const githubAPI = (
-	path: string,
-	method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
-	body: object | null = null
-) => {
+const githubAPI = (path: string, method: ApiMethod = 'GET', body: object | null = null) => {
 	const headers = {
 		'Content-Type': 'application/json',
 		Accept: 'application/vnd.github.v3+json',
@@ -80,11 +78,7 @@ const githubAPI = (
 	return genericAPI('https://api.github.com', path, method, headers, body);
 };
 
-const cloudflareAPI = (
-	path: string,
-	method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
-	body: object | null = null
-) => {
+const cloudflareAPI = (path: string, method: ApiMethod = 'GET', body: object | null = null) => {
 	const headers = {
 		'Content-Type': 'application/json',
 		Accept: 'application/json',
@@ -119,7 +113,7 @@ async function deploy(
 	maxDeployments: number,
 	buildDir: string = SVELTE_BUILD_DIR,
 	secrets: string[] = [],
-	envVars: string[] = []
+	variables: string[] = []
 ): Promise<void> {
 	logger.debug(`Deploying project ${name}, environment ${environment} from ${repository}`);
 	const projectResults = await cloudflareAPI(`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects`);
@@ -136,8 +130,9 @@ async function deploy(
 	await createGithubDeployment(repository, environment, publishUrl);
 	await cleanGithubDeployments(repository, environment, maxDeployments);
 	await cleanPagesDeployments(name, environment, maxDeployments);
-	envVars.forEach((envVar: string) => addPageEnvvar(name, envVar, process.env[envVar] || null));
-	secrets.forEach((secret: string) => addPageSecret(name, secret, process.env[secret] || null));
+	const envMap = (vars: string[]) =>
+		vars.map((varName) => ({ name: varName, value: `${process.env[varName]}` }));
+	addPageVariables(name, envMap(secrets), envMap(variables));
 	const projectType = environment == head ? 'Production' : 'Preview';
 	logger.debug(`${projectType} deployment published at url ${publishUrl}`);
 }
@@ -302,16 +297,37 @@ async function cleanPagesDeployments(
 	}
 }
 
-async function addPageSecret(page: string, secret: string, value: string | null) {
-	if (value) {
-		logger.debug(`Adding secret '${secret}' to project '${page}'`);
-	}
-}
-
-async function addPageEnvvar(page: string, envvar: string, value: string | null) {
-	if (value) {
-		logger.debug(`Adding secret '${envvar}' to project '${page}'`);
-	}
+async function addPageVariables(
+	page: string,
+	variables: { name: string; value: string }[],
+	secrets: { name: string; value: string }[]
+) {
+	logger.debug(`Adding variables '${Object.keys(variables)}' to project '${page}'`);
+	logger.debug(`Adding secrets '${Object.keys(secrets)}' to project '${page}'`);
+	const varMap = (vars: { name: string; value: string }[]) => {
+		return vars
+			.map((variable) => ({ [variable.name]: { value: variable.value } }))
+			.reduce((a, x) => ({ ...a, ...x }), {});
+	};
+	const secretMap = (vars: { name: string; value: string }[]) => {
+		return vars
+			.map((variable) => ({ [variable.name]: { value: variable.value, type: 'secret_text' } }))
+			.reduce((a, x) => ({ ...a, ...x }), {});
+	};
+	const pageData = {
+		deployment_configs: {
+			production: {
+				compatibility_date: '2022-01-01',
+				compatibility_flags: ['url_standard'],
+				env_vars: { ...varMap(variables), ...secretMap(secrets) }
+			}
+		}
+	};
+	await cloudflareAPI(
+		`accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${page}`,
+		'PATCH',
+		pageData
+	);
 }
 
 async function clean(
