@@ -1,1 +1,5 @@
-<h1>Hello World 2</h1>
+<script>
+ import { listRepos } from '$lib/github.ts'
+</script>
+
+<h1>{listRepos()}</h1>
